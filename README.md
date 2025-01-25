@@ -7,3 +7,5 @@ Make sure that you have Python installed.
 To run it use it as a postprocessing script in the slicer like this:
 
 ```"C:\Path\To\Python\python.exe" "C:\Path\To\Script\Smoothificator.py" -outerLayerHeight```
+
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/MffF5_rbtW8/0.jpg)](https://www.youtube.com/watch?v=MffF5_rbtW8)
