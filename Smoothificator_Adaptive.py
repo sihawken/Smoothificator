@@ -235,7 +235,18 @@ def process_gcode(input_file, outer_layer_height=None, skip_layers=1, feedrate_s
 
                     # Process extrusion lines
                     for block_line in external_block_lines:
-                        if ("G1" in block_line or "G2" in block_line or "G3" in block_line) and "E" in block_line:
+
+                        g1f_pattern = r"G1 F(\d+(\.\d+)?)"
+                        g1f_match = re.search(g1f_pattern, block_line)
+
+                        if g1f_match:
+                            logging.info(f"{float(g1f_match.group(1))} {1+feedrate_scale}")
+                            feedrate = float(g1f_match.group(1))+float(g1f_match.group(1))*((passes_needed-1)*feedrate_scale)
+                            modified_line = re.sub(g1f_pattern, f"{feedrate:.1f}", block_line)
+                            modified_lines.append(modified_line)
+                            logging.info(f"feedrate was {g1f_match.group(1)}, changed to {feedrate:.0f}.") # TODO: DEBUGGING
+
+                        elif ("G1" in block_line or "G2" in block_line or "G3" in block_line) and "E" in block_line:
                             e_match = re.search(r'E([-\d.]+)', block_line)
                             if e_match:
                                 e_value = float(e_match.group(1))
@@ -267,9 +278,9 @@ if __name__ == "__main__":
     parser.add_argument('-outerLayerHeight', '--outer-layer-height', type=float,
                        help='Desired height for outer walls (mm). If not provided, will use min_layer_height from G-code')
     parser.add_argument('-skipLayers', '--skip-layers', type=int,
-                       help='The number of layers to skip. Default is one.')
-    parser.add_argument('-feedrateScale', '--feedrate-scale', type=int,
-                       help='A feedrate scale of 1 keeps the same original volumetric flow rate. A feedrate scale of 0 keeps the same original speed. Default=.15')
+                       help='The number of layers to skip.', default=1)
+    parser.add_argument('-feedrateScale', '--feedrate-scale', type=float,
+                       help='A feedrate scale of 1 keeps the same original volumetric flow rate. A feedrate scale of 0 keeps the same original speed.', default=0)
 
     args = parser.parse_args()
 
