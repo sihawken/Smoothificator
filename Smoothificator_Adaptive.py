@@ -55,7 +55,7 @@ def get_min_layer_height(gcode_lines):
                 return float(match.group(1))
     return None
 
-def process_gcode(input_file, outer_layer_height=None, skip_layers=0):
+def process_gcode(input_file, outer_layer_height=None, skip_layers=1):
     current_layer = 0
     current_z = 0.0
     last_z_height = 0.0
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     parser.add_argument('-outerLayerHeight', '--outer-layer-height', type=float,
                        help='Desired height for outer walls (mm). If not provided, will use min_layer_height from G-code')
     parser.add_argument('-skipLayers', '--skip-layers', type=int,
-                       help='The number of layers to skip. Default is zero.')
+                       help='The number of layers to skip. Default is one.')
 
     args = parser.parse_args()
 
