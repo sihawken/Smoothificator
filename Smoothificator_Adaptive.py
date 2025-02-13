@@ -12,15 +12,18 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 # Copyright (c) [2025] [Roman Tenger]
+# Modified for use with Bambu Studio by Tyler
 import re
 import sys
 import logging
 import os
 import argparse
 import math
+import shutil
 
 # Get the directory where the script is located
 script_dir = os.path.dirname(os.path.abspath(__file__))
+gcode_copy_dir = os.path.join(script_dir, "last_processed.gcode")
 
 # Configure logging
 log_file_path = os.path.join(script_dir, "smooth_wall_log.txt")
@@ -52,6 +55,7 @@ def get_min_layer_height(gcode_lines):
 def process_gcode(input_file, outer_layer_height=None):
     current_layer = 0
     current_z = 0.0
+    last_layer_current_z = 0.0
     current_layer_height = 0.0
     in_external_perimeter = False
     external_block_lines = []
@@ -80,41 +84,56 @@ def process_gcode(input_file, outer_layer_height=None):
     
     # Process the G-code
     modified_lines = []
+
     i = 0
+
     while i < len(lines):
         line = lines[i]
         
         # Detect layer changes and get layer height
-        if ";LAYER_CHANGE" in line:
-            current_layer += 1
+        if re.search(r';\s*CHANGE_LAYER|;\s*LAYER_CHANGE', line):
+            logging.info(f"LAYER CHANGE DETECTED!!!!") # TODO: DEBUGGING
+            last_layer_current_z = current_z
             # Look ahead for HEIGHT marker
             for j in range(i + 1, min(i + 5, len(lines))):
                 if ";HEIGHT:" in lines[j]:
                     height_match = re.search(r';HEIGHT:([\d.]+)', lines[j])
-                    if height_match:
+                elif "; LAYER_HEIGHT: " in lines[j]:
+                    height_match = re.search(r'; LAYER_HEIGHT: ([\d.]+)', lines[j])
+                else:
+                    height_match=False
+
+                if height_match:
+                    if current_layer_height != float(height_match.group(1)):
                         current_layer_height = float(height_match.group(1))
                         logging.info(f"Layer {current_layer} detected with height={current_layer_height:.3f}")
-                        break
+                    break
             modified_lines.append(line)
             i += 1
             continue
 
+        # Z position regex pattern
+        z_regex_pattern = re.compile(r'G1.*?\bZ([-0-9.]+)\b')
+        z_regex_match = z_regex_pattern.search(line)
+
         # Get current Z position
-        if line.startswith("G1 Z"):
-            z_match = re.search(r'Z([-\d.]+)', line)
-            if z_match:
-                current_z = float(z_match.group(1))
+        if z_regex_match:
+            current_z = float(z_regex_match.group(1))
+            logging.info(f"Found match z position: {current_z}") # TODO: DEBUGGING
             modified_lines.append(line)
             i += 1
             continue
 
         # Start of external perimeter block
-        if ";TYPE:External perimeter" in line or ";TYPE:Outer wall" in line:
+        if ";TYPE:External perimeter" in line or ";TYPE:Outer wall" in line or "; FEATURE: Outer wall" in line:
+
             external_block_lines = []
             # Collect all lines until next type change or empty line
             while i < len(lines):
                 current_line = lines[i]
-                if i + 1 < len(lines) and (";TYPE:" in lines[i + 1] or "M" in lines[i + 1] and not "M73" in lines[i + 1]):
+                if i + 1 < len(lines) and (";TYPE:" in lines[i + 1] or "; FEATURE:" in lines [i + 1] and not ("Overhang" in lines[i + 1] or "Outer" in lines[i + 1]) or lines[i + 1].startswith(";Z")):
+                    logging.info(f"line L {current_line}") # TODO: DEBUGGING
+                    logging.info(f"line+1 : {lines[i +1]}") # TODO: DEBUGGING
                     external_block_lines.append(current_line)
                     i += 1
                     break
@@ -199,12 +218,19 @@ def process_gcode(input_file, outer_layer_height=None):
                     
                     # Process extrusion lines
                     for block_line in external_block_lines:
-                        if "G1" in block_line and "E" in block_line:
+                        if ("G1" in block_line or "G2" in block_line or "G3" in block_line) and "E" in block_line:
                             e_match = re.search(r'E([-\d.]+)', block_line)
                             if e_match:
                                 e_value = float(e_match.group(1))
                                 new_e_value = e_value * extrusion_multiplier
                                 modified_line = re.sub(r'E[-\d.]+', f'E{new_e_value:.5f}', block_line)
+                                org_z_match = re.search(r'G1.*\bZ' + re.escape(str(current_z).lstrip('0').rstrip('0')) + r'\b', modified_line)
+                                if org_z_match and f"{current_z:.5f}"!=f"{pass_z:.5f}":
+                                    pattern = re.compile(r'(Z[-0-9.]+)')
+                                    modified_line = pattern.sub(r'Z' + f"{pass_z:.3f}", modified_line)
+                                    logging.info(f"Z ORG MATCH, ERROR curr_z:{current_z:.5f}  pass:{pass_z:.5f}") # TODO: DEBUGGING
+                                    logging.info("NEW LINE: " + modified_line) # TODO: DEBUGGING
+
                                 modified_lines.append(modified_line)
                         else:
                             modified_lines.append(block_line)
@@ -216,6 +242,7 @@ def process_gcode(input_file, outer_layer_height=None):
     with open(input_file, 'w') as outfile:
         outfile.writelines(modified_lines)
 
+    shutil.copy(input_file, gcode_copy_dir)
     logging.info("G-code processing completed")
     logging.info(f"Log file saved at {log_file_path}")
 
