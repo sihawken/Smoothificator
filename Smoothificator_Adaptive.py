@@ -14,7 +14,7 @@
 # Copyright (c) [2025] [Roman Tenger]
 # Modified for use with Bambu Studio by Tyler
 # Modified for use with Orcaslicer by Simon
-# Fixes from AdelinoGP 
+# Fixes from AdelinoGP
 
 import re
 import sys
@@ -62,7 +62,7 @@ def process_gcode(input_file, outer_layer_height=None):
     current_layer_height = 0.0
     in_external_perimeter = False
     external_block_lines = []
-    
+
     logging.info("Starting G-code processing")
     logging.info(f"Input file: {input_file}")
     logging.info(f"Desired outer wall height: {outer_layer_height}mm")
@@ -84,7 +84,7 @@ def process_gcode(input_file, outer_layer_height=None):
     if outer_layer_height <= 0:
         logging.error(f"Outer layer height ({outer_layer_height}mm) must be greater than 0")
         sys.exit(1)
-    
+
     # Process the G-code
     modified_lines = []
 
@@ -92,7 +92,7 @@ def process_gcode(input_file, outer_layer_height=None):
 
     while i < len(lines):
         line = lines[i]
-        
+
         # Detect layer changes and get layer height
         if re.search(r';\s*CHANGE_LAYER|;\s*LAYER_CHANGE', line):
             logging.info(f"LAYER CHANGE DETECTED!!!!") # TODO: DEBUGGING
@@ -116,7 +116,7 @@ def process_gcode(input_file, outer_layer_height=None):
             continue
 
         # Z position regex pattern
-        z_regex_pattern = re.compile(r'G1.*?\bZ([-0-9.]+)\b')
+        z_regex_pattern = re.compile(r'G1.*?\bZ([-0-9.]+)(?=\s|$)')
         z_regex_match = z_regex_pattern.search(line)
 
         # Get current Z position
@@ -149,16 +149,16 @@ def process_gcode(input_file, outer_layer_height=None):
                     # Calculate both ceiling and floor passes
                     passes_ceil = math.ceil(current_layer_height / outer_layer_height)
                     passes_floor = math.floor(current_layer_height / outer_layer_height)
-                    
+
                     # Calculate resulting height per pass for both options
                     height_per_pass_ceil = current_layer_height / passes_ceil
                     height_per_pass_floor = current_layer_height / passes_floor if passes_floor > 0 else float('inf')
-                    
+
                     # Calculate differences from desired height
                     diff_ceil = abs(height_per_pass_ceil - outer_layer_height)
                     diff_floor = abs(height_per_pass_floor - outer_layer_height)
                     diff_original = abs(current_layer_height - outer_layer_height)
-                    
+
                     # Choose the option that gets us closest to outer_layer_height
                     if diff_original <= diff_ceil and diff_original <= diff_floor:
                         # Keep original if it's closest to desired height
@@ -170,9 +170,9 @@ def process_gcode(input_file, outer_layer_height=None):
                     else:
                         passes_needed = passes_floor
                         height_per_pass = height_per_pass_floor
-                    
+
                     extrusion_multiplier = 1.0 / passes_needed
-                    
+
                     logging.info(f"Layer {current_layer}: Z={current_z:.4f}, layer_height={current_layer_height:.4f}mm, "
                                f"target_height={outer_layer_height:.4f}mm\n"
                                f"    Options: ceil={height_per_pass_ceil:.4f}mm/pass ({passes_ceil} passes), "
@@ -184,7 +184,7 @@ def process_gcode(input_file, outer_layer_height=None):
                     passes_needed = 1
                     height_per_pass = current_layer_height
                     extrusion_multiplier = 1
-                    
+
                     logging.info(f"Layer {current_layer}: Z={current_z:.4f}, layer_height={current_layer_height:.4f}mm, "
                                f"target_height={outer_layer_height:.4f}mm\n"
                                f"    Thin layer: single pass with adjusted extrusion ({extrusion_multiplier:.4f}x)")
@@ -209,16 +209,16 @@ def process_gcode(input_file, outer_layer_height=None):
                     else:
                         # For multiple passes, distribute height
                         pass_z = (current_z - current_layer_height) + ((pass_num + 1) * height_per_pass)
-                    
+
                     logging.info(f"    Pass {pass_num + 1}: Z={pass_z:.4f}")
-                    
+
                     # Add travel move back to start position (except for first pass)
                     if pass_num > 0 and start_pos:
                         modified_lines.append(f"G1 X{start_pos[0]:.3f} Y{start_pos[1]:.3f} F9000 ; Travel back to start\n")
-                    
+
                     # Set Z height for this pass
                     modified_lines.append(f"G1 Z{pass_z:.3f} ; Pass {pass_num + 1} of {passes_needed}\n")
-                    
+
                     # Process extrusion lines
                     for block_line in external_block_lines:
                         if ("G1" in block_line or "G2" in block_line or "G3" in block_line) and "E" in block_line:
@@ -227,7 +227,7 @@ def process_gcode(input_file, outer_layer_height=None):
                                 e_value = float(e_match.group(1))
                                 new_e_value = e_value * extrusion_multiplier
                                 modified_line = re.sub(r'E[-\d.]+', f'E{new_e_value:.5f}', block_line)
-                                org_z_match = re.search(r'G1.*\bZ' + re.escape(str(current_z).lstrip('0').rstrip('0')) + r'\b', modified_line)
+                                org_z_match = re.search(r'G1.*\bZ' + re.escape(str(current_z).lstrip('0').rstrip('0').rstrip('.')) + r'\b', modified_line)
                                 if org_z_match and f"{current_z:.5f}"!=f"{pass_z:.5f}":
                                     pattern = re.compile(r'(Z[-0-9.]+)')
                                     modified_line = pattern.sub(r'Z' + f"{pass_z:.3f}", modified_line)
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     parser.add_argument('input_file', help='Input G-code file')
     parser.add_argument('-outerLayerHeight', '--outer-layer-height', type=float,
                        help='Desired height for outer walls (mm). If not provided, will use min_layer_height from G-code')
-    
+
     args = parser.parse_args()
-    
+
     process_gcode(input_file=args.input_file, outer_layer_height=args.outer_layer_height)
