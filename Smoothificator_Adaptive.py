@@ -13,6 +13,9 @@
 #
 # Copyright (c) [2025] [Roman Tenger]
 # Modified for use with Bambu Studio by Tyler
+# Modified for use with Orcaslicer by Simon
+# Fixes from AdelinoGP 
+
 import re
 import sys
 import logging
