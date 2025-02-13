@@ -55,7 +55,7 @@ def get_min_layer_height(gcode_lines):
                 return float(match.group(1))
     return None
 
-def process_gcode(input_file, outer_layer_height=None, skip_layers=1):
+def process_gcode(input_file, outer_layer_height=None, skip_layers=1, feedrate_scale=0.15):
     current_layer = 0
     current_z = 0.0
     last_z_height = 0.0
@@ -268,7 +268,9 @@ if __name__ == "__main__":
                        help='Desired height for outer walls (mm). If not provided, will use min_layer_height from G-code')
     parser.add_argument('-skipLayers', '--skip-layers', type=int,
                        help='The number of layers to skip. Default is one.')
+    parser.add_argument('-feedrateScale', '--feedrate-scale', type=int,
+                       help='A feedrate scale of 1 keeps the same original volumetric flow rate. A feedrate scale of 0 keeps the same original speed. Default=.15')
 
     args = parser.parse_args()
 
-    process_gcode(input_file=args.input_file, outer_layer_height=args.outer_layer_height, skip_layers=args.skip_layers)
+    process_gcode(input_file=args.input_file, outer_layer_height=args.outer_layer_height, skip_layers=args.skip_layers, feedrate_scale=args.feedrate_scale)
