@@ -55,10 +55,10 @@ def get_min_layer_height(gcode_lines):
                 return float(match.group(1))
     return None
 
-def process_gcode(input_file, outer_layer_height=None):
+def process_gcode(input_file, outer_layer_height=None, skip_layers=0):
     current_layer = 0
     current_z = 0.0
-    last_layer_current_z = 0.0
+    last_z_height = 0.0
     current_layer_height = 0.0
     in_external_perimeter = False
     external_block_lines = []
@@ -95,8 +95,19 @@ def process_gcode(input_file, outer_layer_height=None):
 
         # Detect layer changes and get layer height
         if re.search(r';\s*CHANGE_LAYER|;\s*LAYER_CHANGE', line):
-            logging.info(f"LAYER CHANGE DETECTED!!!!") # TODO: DEBUGGING
-            last_layer_current_z = current_z
+
+            # Look ahead for Z_HEIGHT marker
+            for j in range(i + 1, min(i + 5, len(lines))):
+                if "; Z_HEIGHT:" in lines[j]:
+                    z_height_match = re.search(r'; Z_HEIGHT: ([\d.]+)', lines[j])
+
+                if z_height_match:
+                    if f"{last_z_height:.3f}" != f"{float(z_height_match.group(1)):.3f}":
+                        last_z_height = float(z_height_match.group(1))
+                        current_layer += 1
+                        logging.info(f"Layer {current_layer} detected with z-height={last_z_height:.3f}")
+                    break
+
             # Look ahead for HEIGHT marker
             for j in range(i + 1, min(i + 5, len(lines))):
                 if ";HEIGHT:" in lines[j]:
@@ -111,6 +122,7 @@ def process_gcode(input_file, outer_layer_height=None):
                         current_layer_height = float(height_match.group(1))
                         logging.info(f"Layer {current_layer} detected with height={current_layer_height:.3f}")
                     break
+
             modified_lines.append(line)
             i += 1
             continue
@@ -122,7 +134,6 @@ def process_gcode(input_file, outer_layer_height=None):
         # Get current Z position
         if z_regex_match:
             current_z = float(z_regex_match.group(1))
-            logging.info(f"Found match z position: {current_z}") # TODO: DEBUGGING
             modified_lines.append(line)
             i += 1
             continue
@@ -130,13 +141,16 @@ def process_gcode(input_file, outer_layer_height=None):
         # Start of external perimeter block
         if ";TYPE:External perimeter" in line or ";TYPE:Outer wall" in line or "; FEATURE: Outer wall" in line:
 
+            if current_layer <= skip_layers:
+                logging.info(f"Skipped layer {current_layer}.")
+                i += 1
+                continue
+
             external_block_lines = []
             # Collect all lines until next type change or empty line
             while i < len(lines):
                 current_line = lines[i]
-                if i + 1 < len(lines) and (";TYPE:" in lines[i + 1] or "; FEATURE:" in lines [i + 1] and not ("Overhang" in lines[i + 1] or "Outer" in lines[i + 1]) or lines[i + 1].startswith(";Z") or lines[i + 1].startswith("M991")):
-                    logging.info(f"line L {current_line}") # TODO: DEBUGGING
-                    logging.info(f"line+1 : {lines[i +1]}") # TODO: DEBUGGING
+                if i + 1 < len(lines) and (";TYPE:" in lines[i + 1] or "; FEATURE:" in lines [i + 1] and not ("Overhang" in lines[i + 1] or "Outer" in lines[i + 1]) or lines[i + 1].startswith(";Z") or lines[i + 1].startswith("M991") or lines[i + 1].startswith("; CHANGE_LAYER")):
                     external_block_lines.append(current_line)
                     i += 1
                     break
@@ -231,9 +245,6 @@ def process_gcode(input_file, outer_layer_height=None):
                                 if org_z_match and f"{current_z:.5f}"!=f"{pass_z:.5f}":
                                     pattern = re.compile(r'(Z[-0-9.]+)')
                                     modified_line = pattern.sub(r'Z' + f"{pass_z:.3f}", modified_line)
-                                    logging.info(f"Z ORG MATCH, ERROR curr_z:{current_z:.5f}  pass:{pass_z:.5f}") # TODO: DEBUGGING
-                                    logging.info("NEW LINE: " + modified_line) # TODO: DEBUGGING
-
                                 modified_lines.append(modified_line)
                         else:
                             modified_lines.append(block_line)
@@ -255,7 +266,9 @@ if __name__ == "__main__":
     parser.add_argument('input_file', help='Input G-code file')
     parser.add_argument('-outerLayerHeight', '--outer-layer-height', type=float,
                        help='Desired height for outer walls (mm). If not provided, will use min_layer_height from G-code')
+    parser.add_argument('-skipLayers', '--skip-layers', type=int,
+                       help='The number of layers to skip. Default is zero.')
 
     args = parser.parse_args()
 
-    process_gcode(input_file=args.input_file, outer_layer_height=args.outer_layer_height)
+    process_gcode(input_file=args.input_file, outer_layer_height=args.outer_layer_height, skip_layers=args.skip_layers)
