@@ -1,4 +1,7 @@
-# Smoothificator
+# Smoothificator (modified for Orcaslicer and Bambu Printers)
+Important: Please look at the output of this script in a gcode viewer in order to make sure that this script isn't doing anything silly.
+I put a lot of time and effort into making this work, but the work was fast and scrappy. There are no guarantees it'll work!
+
 A script that enables you to 3D print with different Layerheights on the inside and outside of your print
 
 You can use it in Prusaslicer and Orcaslicer. It is not the same as "combine infill every x layer" because the script only changes the outer walls. That means that you can even print top/bottomlayers + inside walls with a bigger layerheight to save a ton of time. 
