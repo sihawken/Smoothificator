@@ -2,6 +2,10 @@
 Important: Please look at the output of this script in a gcode viewer in order to make sure that this script isn't doing anything silly.
 I put a lot of time and effort into making this work, but the work was fast and scrappy. Therefore I am very likely to have missed something. There are no guarantees it'll work!
 
+Added features:
+- skipLayers <int> : Number of layers to skip. Default is 1.
+- feedrateScale <float> : Number from 0 to 1. Feedrate scale of zero keeps the same printing velocity, feedrate scale of one adjusts the velocity to keep the original volumetric flow rate. Default is 0.
+
 A script that enables you to 3D print with different Layerheights on the inside and outside of your print
 
 You can use it in Prusaslicer and Orcaslicer. It is not the same as "combine infill every x layer" because the script only changes the outer walls. That means that you can even print top/bottomlayers + inside walls with a bigger layerheight to save a ton of time. 
