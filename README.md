@@ -1,6 +1,6 @@
 # Smoothificator (modified for Orcaslicer and Bambu Printers)
 Important: Please look at the output of this script in a gcode viewer in order to make sure that this script isn't doing anything silly.
-I put a lot of time and effort into making this work, but the work was fast and scrappy. Therefore I am very likely to have missed something. There are no guarantees it'll work!
+I put a lot of time and effort into making this work, but the work was fast and scrappy. Therefore I am very likely to have missed something. There are no guarantees it'll work! Tested on a P1S with orcaslicer. 
 
 Added features:
 - skipLayers <int> : Number of layers to skip. Default is 1.
