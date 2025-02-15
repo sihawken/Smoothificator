@@ -55,7 +55,7 @@ def get_min_layer_height(gcode_lines):
                 return float(match.group(1))
     return None
 
-def process_gcode(input_file, outer_layer_height=None, skip_layers=1, feedrate_scale=0):
+def process_gcode(input_file, outer_layer_height=None, skip_layers=1, feedrate_scale=0.0):
     current_layer = 0
     current_z = 0.0
     last_z_height = 0.0
