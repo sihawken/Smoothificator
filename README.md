@@ -6,6 +6,9 @@ Added features:
 - skipLayers <int> : Number of layers to skip. Default is 1.
 - feedrateScale <float> : Number from 0 to 1. Feedrate scale of zero keeps the same printing velocity, feedrate scale of one adjusts the velocity to keep the original volumetric flow rate. Default is 0.
 
+Known incompatibilities: 
+ - Scarf seams: The implementation of the height adjustment is not optimal, and relies on discreet layer heights coming from the slicer.
+
 A script that enables you to 3D print with different Layerheights on the inside and outside of your print
 
 You can use it in Prusaslicer and Orcaslicer. It is not the same as "combine infill every x layer" because the script only changes the outer walls. That means that you can even print top/bottomlayers + inside walls with a bigger layerheight to save a ton of time. 
