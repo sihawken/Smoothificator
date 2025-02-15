@@ -236,29 +236,32 @@ def process_gcode(input_file, outer_layer_height=None, skip_layers=1, feedrate_s
                     # Process extrusion lines
                     for block_line in external_block_lines:
 
+                        modified_line = block_line
+
+                        org_z_match = re.search(r'G1.*\bZ' + re.escape(str(current_z).lstrip('0').rstrip('0').rstrip('.')) + r'\b', modified_line)
+                        if org_z_match and f"{current_z:.5f}"!=f"{pass_z:.5f}":
+                            pattern = re.compile(r'(Z[-0-9.]+)')
+                            modified_line = pattern.sub(r'Z' + f"{pass_z:.3f}", modified_line)
+
                         g1f_pattern = r"G1 F(\d+(\.\d+)?)"
-                        g1f_match = re.search(g1f_pattern, block_line)
+                        g1f_match = re.search(g1f_pattern, modified_line)
 
                         if g1f_match:
                             logging.info(f"{float(g1f_match.group(1))} {1+feedrate_scale}")
                             feedrate = float(g1f_match.group(1))+float(g1f_match.group(1))*((passes_needed-1)*feedrate_scale)
-                            modified_line = re.sub(g1f_pattern, f"{feedrate:.1f}", block_line)
+                            modified_line = re.sub(g1f_pattern, f"{feedrate:.1f}", modified_line)
                             modified_lines.append(modified_line)
-                            logging.info(f"feedrate was {g1f_match.group(1)}, changed to {feedrate:.0f}.") # TODO: DEBUGGING
 
-                        elif ("G1" in block_line or "G2" in block_line or "G3" in block_line) and "E" in block_line:
-                            e_match = re.search(r'E([-\d.]+)', block_line)
+                        elif ("G1" in block_line or "G2" in block_line or "G3" in block_line) and "E" in modified_line:
+                            e_match = re.search(r'E([-\d.]+)', modified_line)
+
                             if e_match:
                                 e_value = float(e_match.group(1))
                                 new_e_value = e_value * extrusion_multiplier
-                                modified_line = re.sub(r'E[-\d.]+', f'E{new_e_value:.5f}', block_line)
-                                org_z_match = re.search(r'G1.*\bZ' + re.escape(str(current_z).lstrip('0').rstrip('0').rstrip('.')) + r'\b', modified_line)
-                                if org_z_match and f"{current_z:.5f}"!=f"{pass_z:.5f}":
-                                    pattern = re.compile(r'(Z[-0-9.]+)')
-                                    modified_line = pattern.sub(r'Z' + f"{pass_z:.3f}", modified_line)
+                                modified_line = re.sub(r'E[-\d.]+', f'E{new_e_value:.5f}', modified_line)
                                 modified_lines.append(modified_line)
                         else:
-                            modified_lines.append(block_line)
+                            modified_lines.append(modified_line)
         else:
             modified_lines.append(line)
             i += 1
